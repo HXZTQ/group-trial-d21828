@@ -10,7 +10,8 @@ var CRL = (function () {
   var MAGIC = [0x43, 0x52, 0x4c, 0x31];   // "CRL1"
   var HEADER_LEN = 64;
   var TAG_LEN = 16;
-  var MANIFEST_PLAIN_LEN = 65536;         // manifest JSON is space-padded to exactly this many bytes (hides file count)
+  var MANIFEST_PLAIN_LEN = 131072;        // manifest JSON is space-padded to exactly this many bytes (hides file count)
+  var LEGACY_MANIFEST_PLAIN_LEN = 65536;  // packages built before 2026-11-16 (455 files no longer fit); still readable, never written
   var BLOCK = 262144;                      // the whole .bin is a multiple of 256 KiB
   var INFO = 'chat-room-lock v1 aes-256-gcm';
 
@@ -19,7 +20,8 @@ var CRL = (function () {
     mMin: 8192, mMax: 262144,              // KiB
     tMin: 1, tMax: 10,
     pMin: 1, pMax: 4,
-    metaLen: MANIFEST_PLAIN_LEN + TAG_LEN, // exact
+    metaLen: MANIFEST_PLAIN_LEN + TAG_LEN, // exact (written)
+    legacyMetaLen: LEGACY_MANIFEST_PLAIN_LEN + TAG_LEN, // exact (read only)
     dataMin: TAG_LEN + 1, dataMax: 64 * 1024 * 1024,
     totalMax: 80 * 1024 * 1024
   };
@@ -60,7 +62,7 @@ var CRL = (function () {
     for (var j = 0; j < 12; j++) if (nMeta[j] !== nData[j]) { same = false; break; }
     if (same) bad('nonce reuse');
     var metaLen = u32(b, 56), dataLen = u32(b, 60);
-    if (metaLen !== LIMITS.metaLen) bad('metaLen');
+    if (metaLen !== LIMITS.metaLen && metaLen !== LIMITS.legacyMetaLen) bad('metaLen');
     if (!(dataLen >= LIMITS.dataMin && dataLen <= LIMITS.dataMax)) bad('dataLen');
     var want = HEADER_LEN + metaLen + dataLen;
     if (want > LIMITS.totalMax) bad('total');
